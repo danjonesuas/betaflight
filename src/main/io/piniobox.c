@@ -18,7 +18,9 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "platform.h"
 
@@ -116,6 +118,82 @@ const char *batteryHeatMessage(void)
     const char *message = batteryHeatConfig()->message;
 
     return message[0] ? message : NULL;
+}
+
+unsigned batteryHeatCopyUpper(char *dest, unsigned destSize, const char *src)
+{
+    if (!dest || destSize == 0) {
+        return 0;
+    }
+
+    unsigned i = 0;
+    if (src) {
+        for (; src[i] && (i + 1) < destSize; i++) {
+            dest[i] = toupper((unsigned char)src[i]);
+        }
+    }
+    dest[i] = '\0';
+
+    return i;
+}
+
+unsigned batteryHeatWrapMessage(const char *text, unsigned lineWidth, char *lines, unsigned lineSize, unsigned lineCount)
+{
+    if (!text || !lines || lineWidth == 0 || lineSize < 2 || lineCount == 0) {
+        return 0;
+    }
+
+    if (lineWidth >= lineSize) {
+        lineWidth = lineSize - 1;
+    }
+
+    unsigned count = 0;
+    const char *cursor = text;
+
+    while (*cursor && count < lineCount) {
+        while (*cursor == ' ') {
+            cursor++;
+        }
+        if (*cursor == '\0') {
+            break;
+        }
+
+        const char * const lineStart = cursor;
+        const char *lastBreak = NULL;
+        unsigned length = 0;
+        while (cursor[length] && length < lineWidth) {
+            if (cursor[length] == ' ') {
+                lastBreak = cursor + length;
+            }
+            length++;
+        }
+
+        const bool remainderFits = cursor[length] == '\0';
+        unsigned take;
+        const char *next;
+        if (remainderFits || !lastBreak) {
+            take = length;
+            next = lineStart + length;
+        } else {
+            take = (unsigned)(lastBreak - lineStart);
+            next = lastBreak;
+        }
+        if (take == 0) {
+            break;
+        }
+
+        char *dest = lines + (count * lineSize);
+        memcpy(dest, lineStart, take);
+        dest[take] = '\0';
+        while (take > 0 && dest[take - 1] == ' ') {
+            dest[--take] = '\0';
+        }
+
+        count++;
+        cursor = next;
+    }
+
+    return count;
 }
 
 void pinioBoxUpdate(timeUs_t currentTimeUs)

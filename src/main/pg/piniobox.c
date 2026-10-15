@@ -18,9 +18,13 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <string.h>
+
 #include "platform.h"
 
 #ifdef USE_PINIOBOX
+
+#include "common/utils.h"
 
 #include "drivers/io.h"
 
@@ -76,11 +80,14 @@ void pgResetFn_pinioBoxConfig(pinioBoxConfig_t *config)
    }
 }
 
-PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 1);
+// v2: the message buffer grew, which moves delayMs and gpio.
+PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 2);
 
 void pgResetFn_batteryHeatConfig(batteryHeatConfig_t *config)
 {
-    config->message[0] = '\0';
+    STATIC_ASSERT(sizeof(BATTERY_HEAT_DEFAULT_MESSAGE) <= sizeof(config->message), battery_heat_default_message_fits);
+
+    strcpy(config->message, BATTERY_HEAT_DEFAULT_MESSAGE);
     config->delayMs = 0;
     config->gpio = 0;
 }

@@ -28,3 +28,10 @@ void pinioBoxTaskControl(void);
 // Configured OSD text while BOXBATTERYHEAT is active and the craft is disarmed,
 // or NULL when there is nothing to show.
 const char *batteryHeatMessage(void);
+
+// Uppercase copy for the OSD font. Returns the number of characters written.
+unsigned batteryHeatCopyUpper(char *dest, unsigned destSize, const char *src);
+
+// Word-wrap text into lineCount buffers of lineSize bytes, packed in lines.
+// Returns the number of lines written.
+unsigned batteryHeatWrapMessage(const char *text, unsigned lineWidth, char *lines, unsigned lineSize, unsigned lineCount);

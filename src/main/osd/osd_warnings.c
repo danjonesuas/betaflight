@@ -73,6 +73,15 @@
 
 const char CRASHFLIP_WARNING[] = ">CRASH FLIP<";
 
+#ifdef USE_PINIOBOX
+static bool renderedBatteryHeatWarning;
+
+bool osdRenderedBatteryHeatWarning(void)
+{
+    return renderedBatteryHeatWarning;
+}
+#endif
+
 #if defined(USE_ESC_SENSOR) || (defined(USE_DSHOT) && defined(USE_DSHOT_TELEMETRY))
 // ESC alarm character constants
 #define ESC_ALARM_CURRENT   'C'
@@ -181,6 +190,9 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
     static armingDisableFlags_e armingDisabledDisplayFlag = 0;
 
     warningText[0] = '\0';
+#ifdef USE_PINIOBOX
+    renderedBatteryHeatWarning = false;
+#endif
 
 #ifdef USE_GPS_RESCUE
     if (osdWarnGetState(OSD_WARNING_GPS_RESCUE_UNAVAILABLE)
@@ -256,10 +268,14 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 #ifdef USE_PINIOBOX
     // Pilot message for Battery Heat. Shown as soon as the mode is active;
     // the matching PINIO output is driven later by pinioBoxUpdate.
+    // Lowercase letters are arrow glyphs in the SD OSD font, so the text
+    // is uppercased. The on-screen element wraps the full message; this
+    // buffer only keeps what a single warning string can hold.
     const char *batteryHeatText = batteryHeatMessage();
     if (batteryHeatText) {
-        tfp_sprintf(warningText, "%s", batteryHeatText);
+        batteryHeatCopyUpper(warningText, OSD_WARNINGS_MAX_SIZE + 1, batteryHeatText);
         *displayAttr = DISPLAYPORT_SEVERITY_INFO;
+        renderedBatteryHeatWarning = true;
         return;
     }
 #endif

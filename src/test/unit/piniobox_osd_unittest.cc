@@ -292,3 +292,67 @@ TEST(BatteryHeat, TaskRunsWhenTheModeIsAssigned)
     pinioBoxTaskControl();
     EXPECT_TRUE(taskEnabled);
 }
+
+TEST(BatteryHeat, DefaultMessageIsLongerThanSixteenCharacters)
+{
+    EXPECT_GT(strlen(BATTERY_HEAT_DEFAULT_MESSAGE), 16u);
+    EXPECT_LE(strlen(BATTERY_HEAT_DEFAULT_MESSAGE), (size_t)BATTERY_HEAT_MESSAGE_LENGTH);
+
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, BATTERY_HEAT_DEFAULT_MESSAGE);
+    osdModeActive = true;
+    pinioBoxUpdate(0);
+
+    EXPECT_STREQ(BATTERY_HEAT_DEFAULT_MESSAGE, batteryHeatMessage());
+}
+
+TEST(BatteryHeat, OsdTextIsUppercaseSoLowercaseIsNotDrawnAsArrows)
+{
+    char upper[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    const unsigned length = batteryHeatCopyUpper(upper, sizeof(upper), BATTERY_HEAT_DEFAULT_MESSAGE);
+
+    EXPECT_EQ(strlen(BATTERY_HEAT_DEFAULT_MESSAGE), length);
+    EXPECT_STREQ("BATTERY HEATING STARTING, AIRCRAFT MAY REBOOT", upper);
+    for (unsigned i = 0; upper[i]; i++) {
+        EXPECT_FALSE(upper[i] >= 'a' && upper[i] <= 'z');
+    }
+}
+
+TEST(BatteryHeat, DefaultMessageWrapsOntoAThirtyColumnRow)
+{
+    char upper[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    batteryHeatCopyUpper(upper, sizeof(upper), BATTERY_HEAT_DEFAULT_MESSAGE);
+
+    char lines[4][31];
+    const unsigned count = batteryHeatWrapMessage(upper, 30, &lines[0][0], sizeof(lines[0]), 4);
+
+    EXPECT_EQ(2u, count);
+    EXPECT_STREQ("BATTERY HEATING STARTING,", lines[0]);
+    EXPECT_STREQ("AIRCRAFT MAY REBOOT", lines[1]);
+}
+
+TEST(BatteryHeat, DefaultMessageWrapsInTheColumnsLeftOfACenteredWarning)
+{
+    char upper[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    batteryHeatCopyUpper(upper, sizeof(upper), BATTERY_HEAT_DEFAULT_MESSAGE);
+
+    // SD warnings default to column 9, leaving 21 columns on a 30-column row.
+    char lines[4][31];
+    const unsigned count = batteryHeatWrapMessage(upper, 21, &lines[0][0], sizeof(lines[0]), 4);
+
+    EXPECT_EQ(3u, count);
+    EXPECT_STREQ("BATTERY HEATING", lines[0]);
+    EXPECT_STREQ("STARTING, AIRCRAFT", lines[1]);
+    EXPECT_STREQ("MAY REBOOT", lines[2]);
+}
+
+TEST(BatteryHeat, AWordLongerThanTheRowIsSplit)
+{
+    char lines[3][5];
+    const unsigned count = batteryHeatWrapMessage("ABCDEFGHIJ", 4, &lines[0][0], sizeof(lines[0]), 3);
+
+    EXPECT_EQ(3u, count);
+    EXPECT_STREQ("ABCD", lines[0]);
+    EXPECT_STREQ("EFGH", lines[1]);
+    EXPECT_STREQ("IJ", lines[2]);
+}
