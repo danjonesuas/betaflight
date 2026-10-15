@@ -18,8 +18,13 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/time.h"
 #include "pg/piniobox.h"
 
 void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig);
 void pinioBoxUpdate(timeUs_t currentTimeUs);
 void pinioBoxTaskControl(void);
+
+// Configured OSD text while BOXBATTERYHEAT is active and the craft is disarmed,
+// or NULL when there is nothing to show.
+const char *batteryHeatMessage(void);

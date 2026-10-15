@@ -56,6 +56,9 @@
 #include "flight/pos_hold.h"
 
 #include "io/beeper.h"
+#ifdef USE_PINIOBOX
+#include "io/piniobox.h"
+#endif
 
 #include "osd/osd.h"
 #include "osd/osd_elements.h"
@@ -249,6 +252,17 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
         *blinking = true;
         return;
     }
+
+#ifdef USE_PINIOBOX
+    // Pilot message for Battery Heat. Shown as soon as the mode is active;
+    // the matching PINIO output is driven later by pinioBoxUpdate.
+    const char *batteryHeatText = batteryHeatMessage();
+    if (batteryHeatText) {
+        tfp_sprintf(warningText, "%s", batteryHeatText);
+        *displayAttr = DISPLAYPORT_SEVERITY_INFO;
+        return;
+    }
+#endif
 
 #ifdef USE_ESC_SENSOR
     // Show warning if we lose motor output, the ESC is overheating or excessive current draw

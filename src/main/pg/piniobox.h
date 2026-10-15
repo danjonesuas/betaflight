@@ -29,3 +29,14 @@ typedef struct pinioBoxConfig_s {
 } pinioBoxConfig_t;
 
 PG_DECLARE(pinioBoxConfig_t, pinioBoxConfig);
+
+// Characters stored for battery_heat_message, excluding the terminating NUL.
+#define BATTERY_HEAT_MESSAGE_LENGTH 16
+
+typedef struct batteryHeatConfig_s {
+    char message[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    uint16_t delayMs;
+    uint8_t gpio; // 1-based PINIO index; 0 leaves the output alone
+} batteryHeatConfig_t;
+
+PG_DECLARE(batteryHeatConfig_t, batteryHeatConfig);

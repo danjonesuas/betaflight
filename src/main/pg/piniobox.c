@@ -76,4 +76,13 @@ void pgResetFn_pinioBoxConfig(pinioBoxConfig_t *config)
    }
 }
 
+PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 1);
+
+void pgResetFn_batteryHeatConfig(batteryHeatConfig_t *config)
+{
+    config->message[0] = '\0';
+    config->delayMs = 0;
+    config->gpio = 0;
+}
+
 #endif
