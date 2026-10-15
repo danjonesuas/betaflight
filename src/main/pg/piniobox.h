@@ -29,3 +29,19 @@ typedef struct pinioBoxConfig_s {
 } pinioBoxConfig_t;
 
 PG_DECLARE(pinioBoxConfig_t, pinioBoxConfig);
+
+// Characters stored for battery_heat_message, excluding the terminating NUL.
+// Long enough for the default sentence and two 30-column OSD rows.
+#define BATTERY_HEAT_MESSAGE_LENGTH 60
+
+// Stored as written. The SD OSD font draws lowercase code points as arrows,
+// so the warning is uppercased when it is rendered.
+#define BATTERY_HEAT_DEFAULT_MESSAGE "Battery heating starting, aircraft may reboot"
+
+typedef struct batteryHeatConfig_s {
+    char message[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    uint16_t delayMs;
+    uint8_t gpio; // 1-based PINIO index; 0 leaves the output alone
+} batteryHeatConfig_t;
+
+PG_DECLARE(batteryHeatConfig_t, batteryHeatConfig);
