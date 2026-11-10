@@ -65,7 +65,7 @@ void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig)
     }
 }
 
-// 1-based CLI index, or -1 when Battery Heat should not drive a pin.
+// 1-based CLI index, or -1 when battery_heat_gpio does not select a pin.
 static int batteryHeatGpioIndex(void)
 {
     const unsigned gpio = batteryHeatConfig()->gpio;
@@ -91,10 +91,21 @@ static bool batteryHeatPulseContinues(void)
     return batteryHeatConfig()->activeMs > 0 && batteryHeatActive && !batteryHeatFinished;
 }
 
+// battery_heat_gpio and a pinio_box entry of BATTERY HEAT name the same
+// timed output. A plain pinio_box follow would drop the pin when the switch opens.
+static bool batteryHeatOwnsPin(int index)
+{
+    if (pinioBoxRuntimeConfig.boxId[index] == BOXBATTERYHEAT) {
+        return true;
+    }
+
+    return index == batteryHeatGpioIndex();
+}
+
 // BOXBATTERYHEAT shows its starting message immediately. The selected pin
 // stays low until delayMs has elapsed, then stays high for activeMs.
-// activeMs 0 holds the pin high until the mode is released. The held state
-// is latched so a 32-bit micros() wrap cannot release an open-ended pulse.
+// Releasing the switch during the delay starts the high period immediately.
+// activeMs 0 holds the pin high only while the mode is selected.
 static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
 {
     if (ARMING_FLAG(ARMED)) {
@@ -117,9 +128,20 @@ static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
     }
 
     if (!batteryHeatActive) {
+        if (!batteryHeatEnabled()) {
+            return false;
+        }
         batteryHeatActive = true;
         batteryHeatOutputHigh = false;
         batteryHeatActivatedAtUs = currentTimeUs;
+    }
+
+    // Letting go before the delay elapses is the start of the activation
+    // window, not a cancel. The pin stays high for activeMs from this moment.
+    if (!getBoxIdState(BOXBATTERYHEAT) && !batteryHeatOutputHigh) {
+        batteryHeatOutputHigh = true;
+        batteryHeatHighAtUs = currentTimeUs;
+        return true;
     }
 
     if (!batteryHeatOutputHigh) {
@@ -239,23 +261,29 @@ unsigned batteryHeatWrapMessage(const char *text, unsigned lineWidth, char *line
 
 void pinioBoxUpdate(timeUs_t currentTimeUs)
 {
-    const int heatGpioIndex = batteryHeatGpioIndex();
+    bool ownsAPin = false;
+    for (int i = 0; i < PINIO_COUNT; i++) {
+        if (batteryHeatOwnsPin(i)) {
+            ownsAPin = true;
+            break;
+        }
+    }
+
+    const bool heatHigh = ownsAPin ? batteryHeatIsHigh(currentTimeUs) : false;
+    if (!ownsAPin && !batteryHeatEnabled() && !batteryHeatPulseContinues()) {
+        batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+    }
 
     for (int i = 0; i < PINIO_COUNT; i++) {
-        if (i == heatGpioIndex) {
+        if (batteryHeatOwnsPin(i)) {
+            pinioSet(i, heatHigh);
             continue;
         }
         if (pinioBoxRuntimeConfig.boxId[i] != BOXID_NONE) {
             pinioSet(i, getBoxIdState(pinioBoxRuntimeConfig.boxId[i]));
         }
-    }
-
-    if (heatGpioIndex >= 0) {
-        pinioSet(heatGpioIndex, batteryHeatIsHigh(currentTimeUs));
-    } else if (!batteryHeatEnabled()) {
-        batteryHeatActive = false;
-        batteryHeatOutputHigh = false;
-        batteryHeatFinished = false;
     }
 }
 

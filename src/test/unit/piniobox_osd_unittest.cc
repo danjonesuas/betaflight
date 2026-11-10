@@ -45,11 +45,15 @@ static bool lastPinioOn;
 static bool taskEnabled;
 
 static const box_t userBox = { "USER1", BOXUSER1, 40 };
+static const box_t batteryHeatBox = { "BATTERY HEAT", BOXBATTERYHEAT, 59 };
 
 const box_t *findBoxByPermanentId(uint8_t permanentId)
 {
     if (permanentId == userBox.permanentId) {
         return &userBox;
+    }
+    if (permanentId == batteryHeatBox.permanentId) {
+        return &batteryHeatBox;
     }
     return NULL;
 }
@@ -431,37 +435,41 @@ TEST(BatteryHeat, ActiveTimeDropsThePinAndTheSecondMessage)
     EXPECT_FALSE(lastPinioOn);
 }
 
-TEST(BatteryHeat, LettingGoKeepsThePinHighForTheActivationTime)
+TEST(BatteryHeat, LettingGoDuringTheDelayStartsTheActivationTime)
 {
     resetBox();
     strcpy(batteryHeatConfigMutable()->message, "START");
     strcpy(batteryHeatConfigMutable()->activeMessage, "Heating now");
-    batteryHeatConfigMutable()->delayMs = 1000;
+    batteryHeatConfigMutable()->delayMs = 3000;
     batteryHeatConfigMutable()->activeMs = 5000;
     batteryHeatConfigMutable()->gpio = 1;
+
+    // The same pin is also a BATTERY HEAT pinio box. It must use the timer,
+    // not follow the switch.
+    pinioBoxConfigMutable()->permanentId[0] = 59;
+    pinioBoxInit(pinioBoxConfig());
 
     osdModeActive = true;
     pinioBoxUpdate(0);
     EXPECT_STREQ("START", batteryHeatMessage());
     EXPECT_FALSE(lastPinioOn);
 
-    // Releasing during the delay does not cancel a timed sequence.
-    osdModeActive = false;
-    pinioBoxUpdate(500000);
+    pinioBoxUpdate(1000000);
     EXPECT_FALSE(lastPinioOn);
     EXPECT_STREQ("START", batteryHeatMessage());
 
-    const timeUs_t highAtUs = 1000000;
-    pinioBoxUpdate(highAtUs);
-    EXPECT_TRUE(lastPinioOn);
-    EXPECT_STREQ("Heating now", batteryHeatMessage());
-
-    pinioBoxUpdate(highAtUs + 4999999);
+    osdModeActive = false;
+    const timeUs_t releasedAtUs = 1500000;
+    pinioBoxUpdate(releasedAtUs);
     EXPECT_TRUE(lastPinioOn);
     EXPECT_EQ(0, lastPinioIndex);
     EXPECT_STREQ("Heating now", batteryHeatMessage());
 
-    pinioBoxUpdate(highAtUs + 5000000);
+    pinioBoxUpdate(releasedAtUs + 4999999);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    pinioBoxUpdate(releasedAtUs + 5000000);
     EXPECT_FALSE(lastPinioOn);
     EXPECT_EQ(nullptr, batteryHeatMessage());
 }
