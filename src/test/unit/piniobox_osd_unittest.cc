@@ -390,6 +390,47 @@ TEST(BatteryHeat, EmptyActiveMessageKeepsTheFirstAfterThePinGoesHigh)
     EXPECT_STREQ("START", batteryHeatMessage());
 }
 
+TEST(BatteryHeat, ActiveTimeDropsThePinAndTheSecondMessage)
+{
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, "START");
+    strcpy(batteryHeatConfigMutable()->activeMessage, "Heating now");
+    batteryHeatConfigMutable()->delayMs = 1000;
+    batteryHeatConfigMutable()->activeMs = 500;
+    batteryHeatConfigMutable()->gpio = 1;
+
+    osdModeActive = true;
+    const timeUs_t startedAtUs = 1000;
+    pinioBoxUpdate(startedAtUs);
+    EXPECT_STREQ("START", batteryHeatMessage());
+    EXPECT_FALSE(lastPinioOn);
+
+    const timeUs_t highAtUs = startedAtUs + 1000000;
+    pinioBoxUpdate(highAtUs);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    pinioBoxUpdate(highAtUs + 499999);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    pinioBoxUpdate(highAtUs + 500000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_EQ(nullptr, batteryHeatMessage());
+
+    // Holding the switch does not start another pulse.
+    pinioBoxUpdate(highAtUs + 500000 + 5000000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_EQ(nullptr, batteryHeatMessage());
+
+    osdModeActive = false;
+    pinioBoxUpdate(highAtUs + 8000000);
+    osdModeActive = true;
+    pinioBoxUpdate(highAtUs + 8000000);
+    EXPECT_STREQ("START", batteryHeatMessage());
+    EXPECT_FALSE(lastPinioOn);
+}
+
 TEST(BatteryHeat, AWordLongerThanTheRowIsSplit)
 {
     char lines[3][5];

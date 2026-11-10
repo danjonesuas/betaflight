@@ -50,7 +50,9 @@ static pinioBoxRuntimeConfig_t pinioBoxRuntimeConfig;
 
 static bool batteryHeatActive;
 static bool batteryHeatOutputHigh;
+static bool batteryHeatFinished;
 static timeUs_t batteryHeatActivatedAtUs;
+static timeUs_t batteryHeatHighAtUs;
 
 void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig)
 {
@@ -82,13 +84,20 @@ static bool batteryHeatEnabled(void)
     return getBoxIdState(BOXBATTERYHEAT) && !ARMING_FLAG(ARMED);
 }
 
-// BOXBATTERYHEAT shows its message immediately. The selected pin stays low
-// until delayMs has elapsed, then stays high while the mode remains active.
-// The high state is latched so a 32-bit micros() wrap cannot release the pin.
+// BOXBATTERYHEAT shows its starting message immediately. The selected pin
+// stays low until delayMs has elapsed, then stays high for activeMs.
+// activeMs 0 holds the pin high until the mode is released. The held state
+// is latched so a 32-bit micros() wrap cannot release an open-ended pulse.
 static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
 {
     if (!batteryHeatEnabled()) {
         batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+        return false;
+    }
+
+    if (batteryHeatFinished) {
         batteryHeatOutputHigh = false;
         return false;
     }
@@ -103,6 +112,16 @@ static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
         const timeDelta_t delayUs = (timeDelta_t)batteryHeatConfig()->delayMs * 1000;
         if (cmpTimeUs(currentTimeUs, batteryHeatActivatedAtUs) >= delayUs) {
             batteryHeatOutputHigh = true;
+            batteryHeatHighAtUs = currentTimeUs;
+        }
+    } else {
+        const uint16_t activeMs = batteryHeatConfig()->activeMs;
+        if (activeMs > 0) {
+            const timeDelta_t activeUs = (timeDelta_t)activeMs * 1000;
+            if (cmpTimeUs(currentTimeUs, batteryHeatHighAtUs) >= activeUs) {
+                batteryHeatOutputHigh = false;
+                batteryHeatFinished = true;
+            }
         }
     }
 
@@ -111,7 +130,7 @@ static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
 
 const char *batteryHeatMessage(void)
 {
-    if (!batteryHeatEnabled()) {
+    if (!batteryHeatEnabled() || batteryHeatFinished) {
         return NULL;
     }
 
@@ -218,6 +237,7 @@ void pinioBoxUpdate(timeUs_t currentTimeUs)
     } else if (!batteryHeatEnabled()) {
         batteryHeatActive = false;
         batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
     }
 }
 

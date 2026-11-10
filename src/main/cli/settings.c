@@ -1842,6 +1842,7 @@ const clivalue_t valueTable[] = {
     { "battery_heat_message", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, BATTERY_HEAT_MESSAGE_LENGTH, STRING_FLAGS_NONE }, PG_BATTERY_HEAT_CONFIG, offsetof(batteryHeatConfig_t, message) },
     { "battery_heat_active_message", VAR_UINT8 | MASTER_VALUE | MODE_STRING, .config.string = { 1, BATTERY_HEAT_MESSAGE_LENGTH, STRING_FLAGS_NONE }, PG_BATTERY_HEAT_CONFIG, offsetof(batteryHeatConfig_t, activeMessage) },
     { "battery_heat_delay_ms", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60000 }, PG_BATTERY_HEAT_CONFIG, offsetof(batteryHeatConfig_t, delayMs) },
+    { "battery_heat_active_ms", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 60000 }, PG_BATTERY_HEAT_CONFIG, offsetof(batteryHeatConfig_t, activeMs) },
     { "battery_heat_gpio", VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, PINIO_COUNT }, PG_BATTERY_HEAT_CONFIG, offsetof(batteryHeatConfig_t, gpio) },
 #endif
 #endif

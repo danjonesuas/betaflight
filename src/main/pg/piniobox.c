@@ -80,8 +80,8 @@ void pgResetFn_pinioBoxConfig(pinioBoxConfig_t *config)
    }
 }
 
-// v3: activeMessage added. A saved v2 group is reset.
-PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 3);
+// v4: activeMs added. A saved v3 group is reset.
+PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 4);
 
 void pgResetFn_batteryHeatConfig(batteryHeatConfig_t *config)
 {
@@ -90,6 +90,7 @@ void pgResetFn_batteryHeatConfig(batteryHeatConfig_t *config)
     strcpy(config->message, BATTERY_HEAT_DEFAULT_MESSAGE);
     config->delayMs = 0;
     config->gpio = 0;
+    config->activeMs = 0;
 }
 
 #endif

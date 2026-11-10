@@ -268,7 +268,7 @@ void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr)
 #ifdef USE_PINIOBOX
     // Pilot message for Battery Heat. The starting text is shown as soon as
     // the mode is active. Once pinioBoxUpdate latches the GPIO on, the active
-    // message replaces it.
+    // message replaces it for battery_heat_active_ms.
     // Lowercase letters are arrow glyphs in the SD OSD font, so the text
     // is uppercased. The on-screen element wraps the full message; this
     // buffer only keeps what a single warning string can hold.

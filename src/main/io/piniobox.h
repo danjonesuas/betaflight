@@ -27,7 +27,9 @@ void pinioBoxTaskControl(void);
 
 // OSD text while BOXBATTERYHEAT is active and the craft is disarmed.
 // The starting message is shown until the GPIO latches on, then the active
-// message replaces it. NULL when the selected string is empty.
+// message replaces it for battery_heat_active_ms. Zero keeps that message
+// up until the mode is released. NULL when the sequence has finished or
+// the selected string is empty.
 const char *batteryHeatMessage(void);
 
 // Uppercase copy for the OSD font. Returns the number of characters written.
