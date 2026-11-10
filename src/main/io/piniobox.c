@@ -78,10 +78,17 @@ static int batteryHeatGpioIndex(void)
 }
 
 // The sequence can be triggered only while disarmed. Arming clears the
-// message and the pin; disarming with the mode still selected starts again.
+// message and the pin. Disarming with the mode still selected starts again.
 static bool batteryHeatEnabled(void)
 {
     return getBoxIdState(BOXBATTERYHEAT) && !ARMING_FLAG(ARMED);
+}
+
+// A non-zero activation time, once the mode has been selected, runs to
+// completion after the switch is released.
+static bool batteryHeatPulseContinues(void)
+{
+    return batteryHeatConfig()->activeMs > 0 && batteryHeatActive && !batteryHeatFinished;
 }
 
 // BOXBATTERYHEAT shows its starting message immediately. The selected pin
@@ -90,7 +97,14 @@ static bool batteryHeatEnabled(void)
 // is latched so a 32-bit micros() wrap cannot release an open-ended pulse.
 static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
 {
-    if (!batteryHeatEnabled()) {
+    if (ARMING_FLAG(ARMED)) {
+        batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+        return false;
+    }
+
+    if (!getBoxIdState(BOXBATTERYHEAT) && !batteryHeatPulseContinues()) {
         batteryHeatActive = false;
         batteryHeatOutputHigh = false;
         batteryHeatFinished = false;
@@ -130,7 +144,11 @@ static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
 
 const char *batteryHeatMessage(void)
 {
-    if (!batteryHeatEnabled() || batteryHeatFinished) {
+    if (batteryHeatFinished || ARMING_FLAG(ARMED)) {
+        return NULL;
+    }
+
+    if (!batteryHeatEnabled() && !batteryHeatPulseContinues()) {
         return NULL;
     }
 

@@ -431,6 +431,65 @@ TEST(BatteryHeat, ActiveTimeDropsThePinAndTheSecondMessage)
     EXPECT_FALSE(lastPinioOn);
 }
 
+TEST(BatteryHeat, LettingGoKeepsThePinHighForTheActivationTime)
+{
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, "START");
+    strcpy(batteryHeatConfigMutable()->activeMessage, "Heating now");
+    batteryHeatConfigMutable()->delayMs = 1000;
+    batteryHeatConfigMutable()->activeMs = 5000;
+    batteryHeatConfigMutable()->gpio = 1;
+
+    osdModeActive = true;
+    pinioBoxUpdate(0);
+    EXPECT_STREQ("START", batteryHeatMessage());
+    EXPECT_FALSE(lastPinioOn);
+
+    // Releasing during the delay does not cancel a timed sequence.
+    osdModeActive = false;
+    pinioBoxUpdate(500000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_STREQ("START", batteryHeatMessage());
+
+    const timeUs_t highAtUs = 1000000;
+    pinioBoxUpdate(highAtUs);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    pinioBoxUpdate(highAtUs + 4999999);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_EQ(0, lastPinioIndex);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    pinioBoxUpdate(highAtUs + 5000000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_EQ(nullptr, batteryHeatMessage());
+}
+
+TEST(BatteryHeat, ArmingCutsOffATimedPulseImmediately)
+{
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, "START");
+    strcpy(batteryHeatConfigMutable()->activeMessage, "Heating now");
+    batteryHeatConfigMutable()->delayMs = 0;
+    batteryHeatConfigMutable()->activeMs = 5000;
+    batteryHeatConfigMutable()->gpio = 1;
+
+    osdModeActive = true;
+    pinioBoxUpdate(1000);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    osdModeActive = false;
+    pinioBoxUpdate(2000);
+    EXPECT_TRUE(lastPinioOn);
+
+    ENABLE_ARMING_FLAG(ARMED);
+    pinioBoxUpdate(3000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_EQ(nullptr, batteryHeatMessage());
+}
+
 TEST(BatteryHeat, AWordLongerThanTheRowIsSplit)
 {
     char lines[3][5];
