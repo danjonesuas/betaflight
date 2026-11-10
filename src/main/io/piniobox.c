@@ -115,7 +115,11 @@ const char *batteryHeatMessage(void)
         return NULL;
     }
 
-    const char *message = batteryHeatConfig()->message;
+    const batteryHeatConfig_t *config = batteryHeatConfig();
+    const char *message = config->message;
+    if (batteryHeatOutputHigh && config->activeMessage[0]) {
+        message = config->activeMessage;
+    }
 
     return message[0] ? message : NULL;
 }

@@ -42,6 +42,8 @@ typedef struct batteryHeatConfig_s {
     char message[BATTERY_HEAT_MESSAGE_LENGTH + 1];
     uint16_t delayMs;
     uint8_t gpio; // 1-based PINIO index; 0 leaves the output alone
+    // Shown in place of message once the selected GPIO has been driven on.
+    char activeMessage[BATTERY_HEAT_MESSAGE_LENGTH + 1];
 } batteryHeatConfig_t;
 
 PG_DECLARE(batteryHeatConfig_t, batteryHeatConfig);

@@ -80,8 +80,8 @@ void pgResetFn_pinioBoxConfig(pinioBoxConfig_t *config)
    }
 }
 
-// v2: the message buffer grew, which moves delayMs and gpio.
-PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 2);
+// v3: activeMessage added. A saved v2 group is reset.
+PG_REGISTER_WITH_RESET_FN(batteryHeatConfig_t, batteryHeatConfig, PG_BATTERY_HEAT_CONFIG, 3);
 
 void pgResetFn_batteryHeatConfig(batteryHeatConfig_t *config)
 {

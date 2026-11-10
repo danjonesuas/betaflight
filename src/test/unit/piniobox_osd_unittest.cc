@@ -346,6 +346,50 @@ TEST(BatteryHeat, DefaultMessageWrapsInTheColumnsLeftOfACenteredWarning)
     EXPECT_STREQ("MAY REBOOT", lines[2]);
 }
 
+TEST(BatteryHeat, ActiveMessageReplacesTheFirstOnceThePinGoesHigh)
+{
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, "START");
+    strcpy(batteryHeatConfigMutable()->activeMessage, "Heating now");
+    batteryHeatConfigMutable()->delayMs = 1000;
+    batteryHeatConfigMutable()->gpio = 1;
+
+    osdModeActive = true;
+    pinioBoxUpdate(1000);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_STREQ("START", batteryHeatMessage());
+
+    pinioBoxUpdate(1000 + 999999);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_STREQ("START", batteryHeatMessage());
+
+    pinioBoxUpdate(1000 + 1000000);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("Heating now", batteryHeatMessage());
+
+    char upper[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    batteryHeatCopyUpper(upper, sizeof(upper), batteryHeatMessage());
+    EXPECT_STREQ("HEATING NOW", upper);
+
+    ENABLE_ARMING_FLAG(ARMED);
+    pinioBoxUpdate(1000 + 1000000 + 1);
+    EXPECT_FALSE(lastPinioOn);
+    EXPECT_EQ(nullptr, batteryHeatMessage());
+}
+
+TEST(BatteryHeat, EmptyActiveMessageKeepsTheFirstAfterThePinGoesHigh)
+{
+    resetBox();
+    strcpy(batteryHeatConfigMutable()->message, "START");
+    batteryHeatConfigMutable()->delayMs = 0;
+    batteryHeatConfigMutable()->gpio = 1;
+
+    osdModeActive = true;
+    pinioBoxUpdate(1000);
+    EXPECT_TRUE(lastPinioOn);
+    EXPECT_STREQ("START", batteryHeatMessage());
+}
+
 TEST(BatteryHeat, AWordLongerThanTheRowIsSplit)
 {
     char lines[3][5];
