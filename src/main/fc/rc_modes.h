@@ -84,6 +84,8 @@ typedef enum {
     BOXREADY,
     BOXLAPTIMERRESET,
     BOXWPCAPTURE,
+    BOXAPEXENABLE,   // APEX Activation SET_ENABLED / SET_DISABLED (level)
+    BOXAPEXTRIGGER,  // APEX Activation TRIGGER (rising edge)
     CHECKBOX_ITEM_COUNT
 } boxId_e;
 

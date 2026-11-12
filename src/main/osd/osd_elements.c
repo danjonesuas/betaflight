@@ -162,6 +162,9 @@
 #include "flight/pid.h"
 #include "flight/pos_hold.h"
 
+#ifdef USE_APEX
+#include "io/apex.h"
+#endif
 #include "io/gps.h"
 #include "io/vtx.h"
 
@@ -762,8 +765,33 @@ static void osdElementCustomSerialText(osdElementParms_t *element)
 }
 #endif
 
-#ifdef USE_PROFILE_NAMES
 static void toUpperCase(char* dest, const char* src, unsigned int maxSrcLength);
+
+#ifdef USE_APEX
+static void osdElementApexDisplayText(osdElementParms_t *element)
+{
+    // Activation DISPLAY_TEXT only. MAX7456 fonts are uppercase-only.
+    const char *text = apexGetDisplayText();
+    if (text && text[0] != '\0') {
+        toUpperCase(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
+    } else {
+        strcpy(element->buff, "---");
+    }
+}
+
+static void osdElementApexStatus(osdElementParms_t *element)
+{
+    // Host connection / activation banner (APEX CONNECTED, APEX READY, ...).
+    const char *text = apexGetStatusText();
+    if (text && text[0] != '\0') {
+        toUpperCase(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
+    } else {
+        strcpy(element->buff, "---");
+    }
+}
+#endif
+
+#ifdef USE_PROFILE_NAMES
 
 // Displays the active battery profile name or index.
 static void osdElementBatteryProfileName(osdElementParms_t *element)
@@ -2185,6 +2213,10 @@ static const uint8_t osdElementDisplayOrder[] = {
 #if ENABLE_OSD_CUSTOM_TEXT
     OSD_CUSTOM_SERIAL_TEXT,
 #endif
+#ifdef USE_APEX
+    OSD_APEX_DISPLAY_TEXT,
+    OSD_APEX_STATUS,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -2351,6 +2383,10 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #endif
 #if ENABLE_OSD_CUSTOM_TEXT
     [OSD_CUSTOM_SERIAL_TEXT]      = osdElementCustomSerialText,
+#endif
+#ifdef USE_APEX
+    [OSD_APEX_DISPLAY_TEXT]       = osdElementApexDisplayText,
+    [OSD_APEX_STATUS]             = osdElementApexStatus,
 #endif
 };
 

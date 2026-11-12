@@ -206,6 +206,9 @@ typedef enum {
 #if ENABLE_DRONECAN
     TASK_DRONECAN,
 #endif
+#ifdef USE_APEX
+    TASK_APEX,
+#endif
 
     /* Count of real tasks */
     TASK_COUNT,

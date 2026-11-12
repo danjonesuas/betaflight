@@ -994,3 +994,8 @@ extern struct linker_symbol __fontdata_end;
 #if !defined(ENABLE_UNUSED_PINS_INIT)
 #define ENABLE_UNUSED_PINS_INIT 1
 #endif
+
+// APEX host path is ~17 KB; 512 KB MCU images (e.g. STM32F446) overflow FLASH1.
+#if defined(USE_APEX) && defined(TARGET_FLASH_SIZE) && (TARGET_FLASH_SIZE < 1024)
+#undef USE_APEX
+#endif

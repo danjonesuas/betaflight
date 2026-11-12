@@ -84,6 +84,9 @@
 
 #include "pg/adc.h"
 #include "pg/alt_hold.h"
+#ifdef USE_APEX
+#include "pg/apex.h"
+#endif
 #include "pg/autopilot.h"
 #include "pg/beeper.h"
 #include "pg/beeper_dev.h"
@@ -1718,6 +1721,11 @@ const clivalue_t valueTable[] = {
     { PARAM_NAME_OSD_NAV_MAP_CENTRE,      VAR_UINT8  | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_NAV_MAP_CENTRE_COUNT - 1 }, PG_OSD_NAV_MAP_CONFIG, offsetof(osdNavMapConfig_t, centre) },
     { PARAM_NAME_OSD_NAV_MAP_MIN_SCALE_M, VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 20, 5000 },                        PG_OSD_NAV_MAP_CONFIG, offsetof(osdNavMapConfig_t, minScaleM) },
 #endif // USE_OSD_NAV_MAP
+
+#ifdef USE_APEX
+    { "osd_apex_display_text_pos", VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_APEX_DISPLAY_TEXT]) },
+    { "osd_apex_status_pos",       VAR_UINT16 | MASTER_VALUE, .config.minmaxUnsigned = { 0, OSD_POSCFG_MAX }, PG_OSD_ELEMENT_CONFIG, offsetof(osdElementConfig_t, item_pos[OSD_APEX_STATUS]) },
+#endif
 #endif // end of #ifdef USE_OSD
 
 // PG_SYSTEM_CONFIG
@@ -2110,6 +2118,13 @@ const clivalue_t valueTable[] = {
     { "gimbal_yaw_limit",          VAR_INT8 | MASTER_VALUE, .config.minmaxUnsigned = { -100, 100 }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_yaw_limit) },
     { "gimbal_stabilisation",      VAR_INT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 7 }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_stabilisation) },
     { "gimbal_sensitivity",        VAR_INT8 | MASTER_VALUE, .config.minmaxUnsigned = { -16, 15 }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_sensitivity) },
+#endif
+
+#ifdef USE_APEX
+    // -1 = none; 1..15 = UARTn ordinal (7 => UART7); or raw id (UART7 = 57)
+    { "apex_uart",                 VAR_INT8 | MASTER_VALUE, .config.minmax = { -1, 80 }, PG_APEX_CONFIG, offsetof(apexConfig_t, apex_uart) },
+    { "apex_auto_preconditions",   VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_APEX_CONFIG, offsetof(apexConfig_t, auto_preconditions) },
+    { "apex_throttle_threshold",   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_APEX_CONFIG, offsetof(apexConfig_t, throttle_threshold) },
 #endif
 };
 
