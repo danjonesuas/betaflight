@@ -53,6 +53,7 @@ typedef enum {
     FUNCTION_VTX_MSP             = (1 << 17), // 131072
     FUNCTION_GIMBAL              = (1 << 18), // 262144
     FUNCTION_OSD_CUSTOM_TEXT     = (1 << 19), // 524288 - moved into the bit freed by consolidating the serial LIDAR functions (was 1 << 20)
+    FUNCTION_APEX                = (1 << 20), // 1048576 - APEX Adaptive Payload EXchange host
 } serialPortFunction_e;
 
 #define TELEMETRY_SHAREABLE_PORT_FUNCTIONS_MASK (FUNCTION_TELEMETRY_FRSKY_HUB | FUNCTION_TELEMETRY_LTM | FUNCTION_TELEMETRY_MAVLINK)

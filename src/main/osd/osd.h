@@ -243,6 +243,10 @@ typedef enum {
     OSD_AIRSPEED,
 #endif
 
+#ifdef USE_APEX
+    OSD_APEX_DISPLAY_TEXT,      // APEX Activation DISPLAY_TEXT payload
+#endif
+
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
