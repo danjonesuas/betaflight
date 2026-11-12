@@ -76,6 +76,7 @@ typedef struct {
 } apexTrackedDevice_t;
 
 static serialPort_t *apexSerialPort = NULL;
+static serialPortIdentifier_e apexOpenedPort = SERIAL_PORT_NONE;
 static apex_host_t apexHost;
 static apex_activation_host_t apexActHost;
 static apexTrackedDevice_t apexDevices[APEX_BF_MAX_TRACKED];
@@ -397,11 +398,29 @@ static void apexProcessModeBoxes(void)
     apexTriggerBoxWasActive = triggerActive;
 }
 
+// Resolve apex_uart: accept either a raw serialPortIdentifier_e (e.g. 57 for
+// UART7) or a 1-based UART ordinal (7 -> USART7). Values already in the
+// identifier range (>= SERIAL_PORT_START_IDENTIFIER) are left alone.
+static serialPortIdentifier_e apexResolveUartSetting(int8_t setting)
+{
+    if (setting == SERIAL_PORT_NONE) {
+        return SERIAL_PORT_NONE;
+    }
+    if (setting >= SERIAL_PORT_START_IDENTIFIER) {
+        return (serialPortIdentifier_e)setting;
+    }
+    // Convenience: set apex_uart = 7 means UART7 / USART7.
+    if (setting >= 1 && setting <= 15) {
+        return (serialPortIdentifier_e)(SERIAL_PORT_USART1 + (setting - 1));
+    }
+    return SERIAL_PORT_NONE;
+}
+
 bool apexInit(void)
 {
     // Prefer explicit apex_uart; otherwise use a port tagged with FUNCTION_APEX
     // via the classic `serial` CLI function mask (2026.6.x style).
-    serialPortIdentifier_e port = apexConfig()->apex_uart;
+    serialPortIdentifier_e port = apexResolveUartSetting(apexConfig()->apex_uart);
     if (port == SERIAL_PORT_NONE) {
         const serialPortConfig_t *portConfig = findSerialPortConfig(FUNCTION_APEX);
         if (!portConfig) {
@@ -411,14 +430,18 @@ bool apexInit(void)
         port = portConfig->identifier;
     }
 
+    // Port must be free: clear conflicting serial functions on that UART in
+    // the Ports tab / `serial` CLI, or openSerialPort returns NULL.
     apexSerialPort = openSerialPort(port, FUNCTION_APEX,
                                     NULL, NULL,
                                     APEX_DEFAULT_BAUD, MODE_RXTX,
                                     SERIAL_STOPBITS_1 | SERIAL_PARITY_NO);
     if (!apexSerialPort) {
+        apexOpenedPort = SERIAL_PORT_NONE;
         apexInitialised = false;
         return false;
     }
+    apexOpenedPort = port;
 
     memset(apexDevices, 0, sizeof(apexDevices));
     apexDisplayText[0] = '\0';
@@ -539,7 +562,8 @@ void apexGetStatus(apexStatusSnapshot_t *out)
     }
     memset(out, 0, sizeof(*out));
     out->active = apexIsEnabled();
-    out->uart = apexConfig()->apex_uart;
+    // Report the port actually opened (resolved id), falling back to the setting.
+    out->uart = apexIsEnabled() ? (int8_t)apexOpenedPort : apexConfig()->apex_uart;
     out->flightState = (uint8_t)apexFlightState;
     out->autoPreconditions = apexConfig()->auto_preconditions;
     out->throttleThreshold = apexConfig()->throttle_threshold;

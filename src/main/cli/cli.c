@@ -8231,7 +8231,11 @@ static void cliApexPrintStatus(void)
     apexGetStatus(&status);
 
     cliPrintLinef("APEX host: %s", status.active ? "active" : "inactive");
-    cliPrintLinef("  uart setting: %d", status.uart);
+    cliPrintLinef("  uart id: %d  (UART7 => apex_uart=7 or 57; opens 115200 8N1)", status.uart);
+    if (!status.active) {
+        cliPrintLine("  hint: inactive means the UART did not open — wrong apex_uart id,");
+        cliPrintLine("        or that port is already claimed by another serial function.");
+    }
     cliPrintLinef("  flight_state: %s", apexFlightStateName(status.flightState));
     cliPrintLinef("  auto_preconditions: %u  throttle_threshold: %u%%",
         status.autoPreconditions, status.throttleThreshold);

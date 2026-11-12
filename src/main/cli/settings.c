@@ -2120,7 +2120,7 @@ const clivalue_t valueTable[] = {
 #endif
 
 #ifdef USE_APEX
-    // serialPortIdentifier_e: SERIAL_PORT_NONE (-1) or UART/LPUART/softserial ids
+    // -1 = none; 1..15 = UARTn ordinal (7 => UART7); or raw id (UART7 = 57)
     { "apex_uart",                 VAR_INT8 | MASTER_VALUE, .config.minmax = { -1, 80 }, PG_APEX_CONFIG, offsetof(apexConfig_t, apex_uart) },
     { "apex_auto_preconditions",   VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_APEX_CONFIG, offsetof(apexConfig_t, auto_preconditions) },
     { "apex_throttle_threshold",   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_APEX_CONFIG, offsetof(apexConfig_t, throttle_threshold) },
