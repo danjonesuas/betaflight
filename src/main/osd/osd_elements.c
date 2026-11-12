@@ -770,9 +770,19 @@ static void toUpperCase(char* dest, const char* src, unsigned int maxSrcLength);
 #ifdef USE_APEX
 static void osdElementApexDisplayText(osdElementParms_t *element)
 {
-    // Prefer Activation DISPLAY_TEXT; otherwise show payload connection status.
-    // MAX7456 fonts are uppercase-only — lowercase glyphs render incorrectly.
-    const char *text = apexGetOsdText();
+    // Activation DISPLAY_TEXT only. MAX7456 fonts are uppercase-only.
+    const char *text = apexGetDisplayText();
+    if (text && text[0] != '\0') {
+        toUpperCase(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
+    } else {
+        strcpy(element->buff, "---");
+    }
+}
+
+static void osdElementApexStatus(osdElementParms_t *element)
+{
+    // Host connection / activation banner (APEX CONNECTED, APEX READY, ...).
+    const char *text = apexGetStatusText();
     if (text && text[0] != '\0') {
         toUpperCase(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
     } else {
@@ -2205,6 +2215,7 @@ static const uint8_t osdElementDisplayOrder[] = {
 #endif
 #ifdef USE_APEX
     OSD_APEX_DISPLAY_TEXT,
+    OSD_APEX_STATUS,
 #endif
 };
 
@@ -2375,6 +2386,7 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #endif
 #ifdef USE_APEX
     [OSD_APEX_DISPLAY_TEXT]       = osdElementApexDisplayText,
+    [OSD_APEX_STATUS]             = osdElementApexStatus,
 #endif
 };
 

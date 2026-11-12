@@ -61,11 +61,11 @@ void apexGetStatus(apexStatusSnapshot_t *out);
 // Latest APEX Activation DISPLAY_TEXT payload for OSD (NUL-terminated; may be empty).
 const char *apexGetDisplayText(void);
 
-// OSD line: device DISPLAY_TEXT if set, otherwise a connection/status message
-// while an Activation-capable payload is connected (empty when none).
-const char *apexGetOsdText(void);
+// Host-generated connection / activation status for OSD (e.g. "APEX CONNECTED").
+// Empty when no payload is tracked.
+const char *apexGetStatusText(void);
 
-// True when at least one Activation-capable APEX payload is connected.
+// True when at least one APEX payload is tracked/connected.
 bool apexHasConnectedPayload(void);
 
 const char *apexFlightStateName(uint8_t state);

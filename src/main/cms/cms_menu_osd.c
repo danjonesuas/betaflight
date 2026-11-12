@@ -195,7 +195,8 @@ const OSD_Entry menuOsdActiveElemsEntries[] =
     {"SERIAL TEXT",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_CUSTOM_SERIAL_TEXT]},
 #endif
 #ifdef USE_APEX
-    {"APEX STATUS",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_APEX_DISPLAY_TEXT]},
+    {"APEX TEXT",          OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_APEX_DISPLAY_TEXT]},
+    {"APEX STATUS",        OME_VISIBLE | DYNAMIC, NULL, &osdConfig_item_pos[OSD_APEX_STATUS]},
 #endif
     {"BACK",               OME_Back,    NULL, NULL},
     {NULL,                 OME_END,     NULL, NULL}

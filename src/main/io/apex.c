@@ -550,12 +550,8 @@ bool apexHasConnectedPayload(void)
     return apexAnyTrackedDevice();
 }
 
-const char *apexGetOsdText(void)
+const char *apexGetStatusText(void)
 {
-    // Device DISPLAY_TEXT (pilot prompts) wins over the local status banner.
-    if (apexDisplayText[0] != '\0') {
-        return apexDisplayText;
-    }
     return apexOsdStatusText;
 }
 
