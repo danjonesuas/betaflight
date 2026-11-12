@@ -84,6 +84,9 @@
 
 #include "pg/adc.h"
 #include "pg/alt_hold.h"
+#ifdef USE_APEX
+#include "pg/apex.h"
+#endif
 #include "pg/autopilot.h"
 #include "pg/autopilot_wing.h"
 #include "pg/beeper.h"
@@ -2279,6 +2282,12 @@ const clivalue_t valueTable[] = {
     { "gimbal_stabilisation",      VAR_INT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 7 }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_stabilisation) },
     { "gimbal_sensitivity",        VAR_INT8 | MASTER_VALUE, .config.minmaxUnsigned = { -16, 15 }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_sensitivity) },
     { "gimbal_uart",               VAR_INT8 | MASTER_VALUE | MODE_LOOKUP_IDENTIFIER, .config.identifier = { IDENTIFIER_LOOKUP_SERIAL_PORT }, PG_GIMBAL_TRACK_CONFIG, offsetof(gimbalTrackConfig_t, gimbal_uart) },
+#endif
+
+#ifdef USE_APEX
+    { "apex_uart",                 VAR_INT8 | MASTER_VALUE | MODE_LOOKUP_IDENTIFIER, .config.identifier = { IDENTIFIER_LOOKUP_SERIAL_PORT }, PG_APEX_CONFIG, offsetof(apexConfig_t, apex_uart) },
+    { "apex_auto_preconditions",   VAR_UINT8 | MASTER_VALUE | MODE_LOOKUP, .config.lookup = { TABLE_OFF_ON }, PG_APEX_CONFIG, offsetof(apexConfig_t, auto_preconditions) },
+    { "apex_throttle_threshold",   VAR_UINT8 | MASTER_VALUE, .config.minmaxUnsigned = { 0, 100 }, PG_APEX_CONFIG, offsetof(apexConfig_t, throttle_threshold) },
 #endif
 };
 

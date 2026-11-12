@@ -2,6 +2,7 @@ PG_SRC = \
             pg/adc.c \
             pg/alt_hold_multirotor.c \
             pg/alt_hold_wing.c \
+            pg/apex.c \
             pg/autopilot.c \
             pg/autopilot_wing.c \
             pg/beeper.c \
@@ -274,10 +275,16 @@ COMMON_SRC = \
             io/displayport_crsf.c \
             io/displayport_hott.c \
             io/frsky_osd.c \
+            io/apex.c \
             io/gimbal_control.c \
             io/rcdevice_cam.c \
             io/rcdevice.c \
             io/gps.c \
+            apex/src/apex_cobs.c \
+            apex/src/apex_crc.c \
+            apex/src/apex_framer.c \
+            apex/src/apex_host.c \
+            apex/src/apex_activation.c \
             io/ledstrip.c \
             io/pidaudio.c \
             osd/osd.c \
@@ -512,6 +519,14 @@ SPEED_OPTIMISED_SRC += \
             sensors/gyro.c \
             $(CMSIS_SRC) \
             $(DEVICE_STDPERIPH_SRC) \
+
+# APEX host-path reference sources (device / analog_hmi / repeater omitted for flash)
+SIZE_OPTIMISED_SRC += \
+            apex/src/apex_cobs.c \
+            apex/src/apex_crc.c \
+            apex/src/apex_framer.c \
+            apex/src/apex_host.c \
+            apex/src/apex_activation.c
 
 SIZE_OPTIMISED_SRC += \
             sensors/gyro_init.c \

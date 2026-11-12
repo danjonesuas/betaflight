@@ -52,6 +52,9 @@
 #ifdef USE_GIMBAL
 #include "pg/gimbal.h"
 #endif
+#ifdef USE_APEX
+#include "pg/apex.h"
+#endif
 #ifdef USE_VTX_COMMON
 #include "drivers/vtx_common.h"
 #include "io/vtx.h"
@@ -188,6 +191,11 @@ uint32_t serialSynthesizeFunctionMask(serialPortIdentifier_e identifier)
         mask |= FUNCTION_GIMBAL;
     }
 #endif
+#ifdef USE_APEX
+    if (apexConfig()->apex_uart == identifier) {
+        mask |= FUNCTION_APEX;
+    }
+#endif
 #ifdef USE_VTX_COMMON
     if (vtxSettingsConfig()->vtx_uart == identifier) {
         mask |= vtxFunctionMask();
@@ -281,6 +289,11 @@ unsigned serialGetPortClaims(serialPortIdentifier_e identifier, serialPortClaim_
 #ifdef USE_GIMBAL
     if (gimbalTrackConfig()->gimbal_uart == identifier) {
         ADD_CLAIM("gimbal", "gimbal_uart", NULL, NULL, FUNCTION_GIMBAL);
+    }
+#endif
+#ifdef USE_APEX
+    if (apexConfig()->apex_uart == identifier) {
+        ADD_CLAIM("apex", "apex_uart", NULL, NULL, FUNCTION_APEX);
     }
 #endif
 #ifdef USE_VTX_COMMON
@@ -383,6 +396,11 @@ static void clearClaimsOnPort(serialPortIdentifier_e identifier, bool keepMsp)
 #ifdef USE_GIMBAL
     if (gimbalTrackConfig()->gimbal_uart == identifier) {
         gimbalTrackConfigMutable()->gimbal_uart = SERIAL_PORT_NONE;
+    }
+#endif
+#ifdef USE_APEX
+    if (apexConfig()->apex_uart == identifier) {
+        apexConfigMutable()->apex_uart = SERIAL_PORT_NONE;
     }
 #endif
 #ifdef USE_VTX_COMMON
@@ -561,6 +579,11 @@ bool serialApplyFunctionMask(serialPortIdentifier_e identifier, uint32_t mask)
 #ifdef USE_GIMBAL
     if (mask & FUNCTION_GIMBAL) {
         gimbalTrackConfigMutable()->gimbal_uart = identifier;
+    }
+#endif
+#ifdef USE_APEX
+    if (mask & FUNCTION_APEX) {
+        apexConfigMutable()->apex_uart = identifier;
     }
 #endif
 #ifdef USE_VTX_COMMON

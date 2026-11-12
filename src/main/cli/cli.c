@@ -112,6 +112,7 @@ bool cliMode = false;
 #include "flight/position.h"
 #include "flight/servos.h"
 
+#include "io/apex.h"
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
 #include "io/dronecan/dronecan.h"
@@ -8581,6 +8582,64 @@ RAM_CODE static void cliMsc(const char *cmdName, char *cmdline)
 }
 #endif
 
+#ifdef USE_APEX
+static void cliApexPrintStatus(void)
+{
+    apexStatusSnapshot_t status;
+    apexGetStatus(&status);
+
+    cliPrintLinef("APEX host: %s", status.active ? "active" : "inactive");
+    cliPrintLinef("  uart setting: %d", status.uart);
+    cliPrintLinef("  flight_state: %s", apexFlightStateName(status.flightState));
+    cliPrintLinef("  auto_preconditions: %u  throttle_threshold: %u%%",
+        status.autoPreconditions, status.throttleThreshold);
+    cliPrintLinef("  core devices: %u", status.coreDeviceCount);
+
+    for (unsigned i = 0; i < status.deviceCount; i++) {
+        const apexStatusDevice_t *d = &status.devices[i];
+        cliPrintLinef("  device id=%u status=%s class=%u",
+            d->deviceId, apexDevStatusName(d->coreStatus), d->deviceClass);
+        if (d->hasActivation) {
+            cliPrintLinef("    activation state=%s remaining=%u host_conds=%u",
+                apexActStateName(d->activationState), d->activationsRemaining, d->hostConditions);
+        }
+    }
+}
+
+static void cliApex(const char *cmdName, char *cmdline)
+{
+    UNUSED(cmdName);
+
+    if (isEmpty(cmdline) || strcasecmp(cmdline, "status") == 0) {
+        cliApexPrintStatus();
+        return;
+    }
+
+    char *saveptr;
+    char *tok = strtok_r(cmdline, " ", &saveptr);
+    if (!tok) {
+        cliApexPrintStatus();
+        return;
+    }
+
+    uint8_t deviceId = 0;
+    char *idTok = strtok_r(NULL, " ", &saveptr);
+    if (idTok) {
+        deviceId = (uint8_t)atoi(idTok);
+    }
+
+    if (strcasecmp(tok, "enable") == 0) {
+        cliPrintLine(apexCliEnable(deviceId) ? "OK" : "FAILED");
+    } else if (strcasecmp(tok, "disable") == 0) {
+        cliPrintLine(apexCliDisable(deviceId) ? "OK" : "FAILED");
+    } else if (strcasecmp(tok, "trigger") == 0) {
+        cliPrintLine(apexCliTrigger(deviceId) ? "OK" : "FAILED");
+    } else {
+        cliPrintErrorLinef("Invalid apex command '%s' (status|enable|disable|trigger)", tok);
+    }
+}
+#endif
+
 typedef void cliCommandFn(const char* name, char *cmdline);
 
 typedef struct {
@@ -8616,6 +8675,9 @@ RAM_CODE STATIC_UNIT_TESTED void cliHelp(const char *cmdName, char *cmdline);
 // should be sorted a..z for bsearch()
 const clicmd_t cmdTable[] = {
     CLI_COMMAND_DEF("adjrange", "configure adjustment ranges", "<index> <unused> <range channel> <start> <end> <function> <select channel> [<center> <scale>]", cliAdjustmentRange),
+#ifdef USE_APEX
+    CLI_COMMAND_DEF("apex", "APEX payload host status / activation control", "status | enable [id] | disable [id] | trigger [id]", cliApex),
+#endif
     CLI_COMMAND_DEF("aux", "configure modes", "<index> <mode> <aux> <start> <end> <logic>", cliAux),
 #ifdef USE_CLI_BATCH
     CLI_COMMAND_DEF("batch", "start or end a batch of commands", "start | end", cliBatch),
