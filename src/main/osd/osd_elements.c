@@ -162,6 +162,9 @@
 #include "flight/pid.h"
 #include "flight/pos_hold.h"
 
+#ifdef USE_APEX
+#include "io/apex.h"
+#endif
 #include "io/gps.h"
 #include "io/vtx.h"
 
@@ -753,6 +756,19 @@ static void osdElementLidarDist(osdElementParms_t *element)
 static void osdElementCustomSerialText(osdElementParms_t *element)
 {
     const char* text = osdCustomTextGet();
+    if (text && text[0] != '\0') {
+        strncpy(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
+        element->buff[OSD_ELEMENT_BUFFER_LENGTH - 1] = '\0';
+    } else {
+        strcpy(element->buff, "---");
+    }
+}
+#endif
+
+#ifdef USE_APEX
+static void osdElementApexDisplayText(osdElementParms_t *element)
+{
+    const char *text = apexGetDisplayText();
     if (text && text[0] != '\0') {
         strncpy(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
         element->buff[OSD_ELEMENT_BUFFER_LENGTH - 1] = '\0';
@@ -2185,6 +2201,9 @@ static const uint8_t osdElementDisplayOrder[] = {
 #if ENABLE_OSD_CUSTOM_TEXT
     OSD_CUSTOM_SERIAL_TEXT,
 #endif
+#ifdef USE_APEX
+    OSD_APEX_DISPLAY_TEXT,
+#endif
 };
 
 // Define the mapping between the OSD element id and the function to draw it
@@ -2351,6 +2370,9 @@ const osdElementDrawFn osdElementDrawFunction[OSD_ITEM_COUNT] = {
 #endif
 #if ENABLE_OSD_CUSTOM_TEXT
     [OSD_CUSTOM_SERIAL_TEXT]      = osdElementCustomSerialText,
+#endif
+#ifdef USE_APEX
+    [OSD_APEX_DISPLAY_TEXT]       = osdElementApexDisplayText,
 #endif
 };
 

@@ -58,6 +58,9 @@ typedef struct apexStatusSnapshot_s {
 
 void apexGetStatus(apexStatusSnapshot_t *out);
 
+// Latest APEX Activation DISPLAY_TEXT payload for OSD (NUL-terminated; may be empty).
+const char *apexGetDisplayText(void);
+
 const char *apexFlightStateName(uint8_t state);
 const char *apexDevStatusName(uint8_t status);
 const char *apexActStateName(uint8_t state);

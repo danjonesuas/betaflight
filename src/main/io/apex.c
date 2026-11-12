@@ -60,6 +60,8 @@
 
 #define APEX_BF_MAX_TRACKED 4
 #define APEX_DEFAULT_BAUD   115200
+// Match OSD_ELEMENT_BUFFER_LENGTH / APEX_ACT_DISPLAY_CHAR_LIMIT_DEFAULT.
+#define APEX_OSD_DISPLAY_TEXT_MAX 31
 
 typedef struct {
     bool in_use;
@@ -77,6 +79,7 @@ static apex_activation_host_t apexActHost;
 static apexTrackedDevice_t apexDevices[APEX_BF_MAX_TRACKED];
 static apex_flight_state_t apexFlightState = APEX_FLIGHT_STATE_STANDBY;
 static bool apexInitialised = false;
+static char apexDisplayText[APEX_OSD_DISPLAY_TEXT_MAX + 1];
 
 static uint32_t apexBaudFromCode(apex_baud_code_t code)
 {
@@ -171,6 +174,10 @@ static void apexOnCapability(void *user, uint8_t device_id, const apex_activatio
     d->has_cap = true;
     d->cap = *cap;
     d->start_sent_mask = 0;
+
+    // Advertise OSD-sized display real estate so devices size DISPLAY_TEXT for us.
+    apex_activation_host_send_display_info(&apexActHost, device_id,
+        APEX_OSD_DISPLAY_TEXT_MAX, 1);
 }
 
 static void apexOnStatus(void *user, uint8_t device_id, const apex_activation_status_t *st)
@@ -189,6 +196,27 @@ static void apexOnAck(void *user, uint8_t device_id, const apex_activation_ack_t
     UNUSED(user);
     UNUSED(device_id);
     UNUSED(ack);
+}
+
+static void apexOnDisplayText(void *user, uint8_t device_id, uint8_t target,
+                              const char *text, size_t text_len)
+{
+    UNUSED(user);
+    UNUSED(device_id);
+    UNUSED(target);
+
+    // text_len == 0 clears the target (§6.8). Latest-wins for the single OSD line.
+    if (text_len == 0 || text == NULL) {
+        apexDisplayText[0] = '\0';
+        return;
+    }
+
+    size_t copyLen = text_len;
+    if (copyLen > APEX_OSD_DISPLAY_TEXT_MAX) {
+        copyLen = APEX_OSD_DISPLAY_TEXT_MAX;
+    }
+    memcpy(apexDisplayText, text, copyLen);
+    apexDisplayText[copyLen] = '\0';
 }
 
 static void apexDrainRx(uint32_t nowMs)
@@ -313,6 +341,7 @@ bool apexInit(void)
     }
 
     memset(apexDevices, 0, sizeof(apexDevices));
+    apexDisplayText[0] = '\0';
 
     apex_host_cfg_t hcfg = {0};
     hcfg.supported_interfaces =
@@ -332,6 +361,7 @@ bool apexInit(void)
     hooks.on_capability = apexOnCapability;
     hooks.on_status = apexOnStatus;
     hooks.on_ack = apexOnAck;
+    hooks.on_display_text = apexOnDisplayText;
     apex_activation_host_init(&apexActHost, &apexHost, &hooks);
 
     apexInitialised = true;
@@ -396,6 +426,11 @@ const char *apexActStateName(uint8_t state)
     case APEX_ACTIVATION_STATE_FAULT: return "FAULT";
     default: return "?";
     }
+}
+
+const char *apexGetDisplayText(void)
+{
+    return apexDisplayText;
 }
 
 void apexGetStatus(apexStatusSnapshot_t *out)

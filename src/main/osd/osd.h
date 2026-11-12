@@ -229,6 +229,10 @@ typedef enum {
     OSD_POS_HOLD_READY,         // pre-engagement Position Hold readiness indicator
 #endif
 
+#ifdef USE_APEX
+    OSD_APEX_DISPLAY_TEXT,      // APEX DISPLAY_TEXT, or payload connection status
+#endif
+
     OSD_ITEM_COUNT // MUST BE LAST
 } osd_items_e;
 
