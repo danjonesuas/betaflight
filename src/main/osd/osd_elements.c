@@ -765,14 +765,16 @@ static void osdElementCustomSerialText(osdElementParms_t *element)
 }
 #endif
 
+static void toUpperCase(char* dest, const char* src, unsigned int maxSrcLength);
+
 #ifdef USE_APEX
 static void osdElementApexDisplayText(osdElementParms_t *element)
 {
     // Prefer Activation DISPLAY_TEXT; otherwise show payload connection status.
+    // MAX7456 fonts are uppercase-only — lowercase glyphs render incorrectly.
     const char *text = apexGetOsdText();
     if (text && text[0] != '\0') {
-        strncpy(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
-        element->buff[OSD_ELEMENT_BUFFER_LENGTH - 1] = '\0';
+        toUpperCase(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
     } else {
         strcpy(element->buff, "---");
     }
@@ -780,7 +782,6 @@ static void osdElementApexDisplayText(osdElementParms_t *element)
 #endif
 
 #ifdef USE_PROFILE_NAMES
-static void toUpperCase(char* dest, const char* src, unsigned int maxSrcLength);
 
 // Displays the active battery profile name or index.
 static void osdElementBatteryProfileName(osdElementParms_t *element)

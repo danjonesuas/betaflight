@@ -19,6 +19,7 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
@@ -262,7 +263,10 @@ static void apexOnDisplayText(void *user, uint8_t device_id, uint8_t target,
     if (copyLen > APEX_OSD_DISPLAY_TEXT_MAX) {
         copyLen = APEX_OSD_DISPLAY_TEXT_MAX;
     }
-    memcpy(apexDisplayText, text, copyLen);
+    // MAX7456 fonts are uppercase-only; lowercase glyphs do not render correctly.
+    for (size_t i = 0; i < copyLen; i++) {
+        apexDisplayText[i] = (char)toupper((unsigned char)text[i]);
+    }
     apexDisplayText[copyLen] = '\0';
 }
 
