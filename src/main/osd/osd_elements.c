@@ -771,7 +771,8 @@ static void osdElementCustomSerialText(osdElementParms_t *element)
 #ifdef USE_APEX
 static void osdElementApexDisplayText(osdElementParms_t *element)
 {
-    const char *text = apexGetDisplayText();
+    // Prefer Activation DISPLAY_TEXT; otherwise show payload connection status.
+    const char *text = apexGetOsdText();
     if (text && text[0] != '\0') {
         strncpy(element->buff, text, OSD_ELEMENT_BUFFER_LENGTH - 1);
         element->buff[OSD_ELEMENT_BUFFER_LENGTH - 1] = '\0';
