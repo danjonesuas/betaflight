@@ -39,6 +39,7 @@
 #include "drivers/time.h"
 
 #include "fc/core.h"
+#include "fc/rc_modes.h"
 #include "fc/runtime_config.h"
 
 #include "io/apex.h"
@@ -80,6 +81,8 @@ static apexTrackedDevice_t apexDevices[APEX_BF_MAX_TRACKED];
 static apex_flight_state_t apexFlightState = APEX_FLIGHT_STATE_STANDBY;
 static bool apexInitialised = false;
 static char apexDisplayText[APEX_OSD_DISPLAY_TEXT_MAX + 1];
+static bool apexEnableBoxWasActive = false;
+static bool apexTriggerBoxWasActive = false;
 
 static uint32_t apexBaudFromCode(apex_baud_code_t code)
 {
@@ -317,6 +320,31 @@ static void apexAutoFirePreconditions(void)
     }
 }
 
+static void apexProcessModeBoxes(void)
+{
+    const bool enableActive = IS_RC_MODE_ACTIVE(BOXAPEXENABLE);
+    const bool triggerActive = IS_RC_MODE_ACTIVE(BOXAPEXTRIGGER);
+    const apexTrackedDevice_t *target = apexFirstConnected();
+
+    if (enableActive != apexEnableBoxWasActive) {
+        if (target) {
+            if (enableActive) {
+                apex_activation_host_set_enabled(&apexActHost, target->device_id);
+            } else {
+                apex_activation_host_set_disabled(&apexActHost, target->device_id);
+            }
+        }
+        apexEnableBoxWasActive = enableActive;
+    }
+
+    if (triggerActive && !apexTriggerBoxWasActive) {
+        if (target) {
+            apex_activation_host_trigger(&apexActHost, target->device_id);
+        }
+    }
+    apexTriggerBoxWasActive = triggerActive;
+}
+
 bool apexInit(void)
 {
     const serialPortIdentifier_e port = apexConfig()->apex_uart;
@@ -336,6 +364,8 @@ bool apexInit(void)
 
     memset(apexDevices, 0, sizeof(apexDevices));
     apexDisplayText[0] = '\0';
+    apexEnableBoxWasActive = false;
+    apexTriggerBoxWasActive = false;
 
     apex_host_cfg_t hcfg = {0};
     hcfg.supported_interfaces =
@@ -379,6 +409,7 @@ void apexUpdate(timeUs_t currentTimeUs)
     apexDrainRx(nowMs);
     apexUpdateFlightState();
     apexAutoFirePreconditions();
+    apexProcessModeBoxes();
     apex_host_tick(&apexHost, nowMs);
 }
 
