@@ -84,6 +84,7 @@ typedef enum {
     BOXREADY,
     BOXLAPTIMERRESET,
     BOXWPCAPTURE,
+    BOXBATTERYHEAT, // OSD message, then delayed PINIO output
     CHECKBOX_ITEM_COUNT
 } boxId_e;
 

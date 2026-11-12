@@ -18,7 +18,9 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include <ctype.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "platform.h"
 
@@ -28,6 +30,8 @@
 
 #include "common/time.h"
 #include "common/utils.h"
+
+#include "fc/runtime_config.h"
 
 #include "msp/msp_box.h"
 
@@ -44,6 +48,12 @@ typedef struct pinioBoxRuntimeConfig_s {
 
 static pinioBoxRuntimeConfig_t pinioBoxRuntimeConfig;
 
+static bool batteryHeatActive;
+static bool batteryHeatOutputHigh;
+static bool batteryHeatFinished;
+static timeUs_t batteryHeatActivatedAtUs;
+static timeUs_t batteryHeatHighAtUs;
+
 void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig)
 {
     // Convert permanentId to boxId_e
@@ -55,11 +65,222 @@ void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig)
     }
 }
 
+// 1-based CLI index, or -1 when battery_heat_gpio does not select a pin.
+static int batteryHeatGpioIndex(void)
+{
+    const unsigned gpio = batteryHeatConfig()->gpio;
+
+    if (gpio < 1 || gpio > PINIO_COUNT) {
+        return -1;
+    }
+
+    return (int)gpio - 1;
+}
+
+// The sequence can be triggered only while disarmed. Arming clears the
+// message and the pin. Disarming with the mode still selected starts again.
+static bool batteryHeatEnabled(void)
+{
+    return getBoxIdState(BOXBATTERYHEAT) && !ARMING_FLAG(ARMED);
+}
+
+// A non-zero activation time, once the mode has been selected, runs to
+// completion after the switch is released.
+static bool batteryHeatPulseContinues(void)
+{
+    return batteryHeatConfig()->activeMs > 0 && batteryHeatActive && !batteryHeatFinished;
+}
+
+// battery_heat_gpio and a pinio_box entry of BATTERY HEAT name the same
+// timed output. A plain pinio_box follow would drop the pin when the switch opens.
+static bool batteryHeatOwnsPin(int index)
+{
+    if (pinioBoxRuntimeConfig.boxId[index] == BOXBATTERYHEAT) {
+        return true;
+    }
+
+    return index == batteryHeatGpioIndex();
+}
+
+// BOXBATTERYHEAT shows its starting message immediately. The selected pin
+// stays low until delayMs has elapsed, then stays high for activeMs.
+// Releasing the switch during the delay starts the high period immediately.
+// activeMs 0 holds the pin high only while the mode is selected.
+static bool batteryHeatIsHigh(timeUs_t currentTimeUs)
+{
+    if (ARMING_FLAG(ARMED)) {
+        batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+        return false;
+    }
+
+    if (!getBoxIdState(BOXBATTERYHEAT) && !batteryHeatPulseContinues()) {
+        batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+        return false;
+    }
+
+    if (batteryHeatFinished) {
+        batteryHeatOutputHigh = false;
+        return false;
+    }
+
+    if (!batteryHeatActive) {
+        if (!batteryHeatEnabled()) {
+            return false;
+        }
+        batteryHeatActive = true;
+        batteryHeatOutputHigh = false;
+        batteryHeatActivatedAtUs = currentTimeUs;
+    }
+
+    // Letting go before the delay elapses is the start of the activation
+    // window, not a cancel. The pin stays high for activeMs from this moment.
+    if (!getBoxIdState(BOXBATTERYHEAT) && !batteryHeatOutputHigh) {
+        batteryHeatOutputHigh = true;
+        batteryHeatHighAtUs = currentTimeUs;
+        return true;
+    }
+
+    if (!batteryHeatOutputHigh) {
+        const timeDelta_t delayUs = (timeDelta_t)batteryHeatConfig()->delayMs * 1000;
+        if (cmpTimeUs(currentTimeUs, batteryHeatActivatedAtUs) >= delayUs) {
+            batteryHeatOutputHigh = true;
+            batteryHeatHighAtUs = currentTimeUs;
+        }
+    } else {
+        const uint16_t activeMs = batteryHeatConfig()->activeMs;
+        if (activeMs > 0) {
+            const timeDelta_t activeUs = (timeDelta_t)activeMs * 1000;
+            if (cmpTimeUs(currentTimeUs, batteryHeatHighAtUs) >= activeUs) {
+                batteryHeatOutputHigh = false;
+                batteryHeatFinished = true;
+            }
+        }
+    }
+
+    return batteryHeatOutputHigh;
+}
+
+const char *batteryHeatMessage(void)
+{
+    if (batteryHeatFinished || ARMING_FLAG(ARMED)) {
+        return NULL;
+    }
+
+    if (!batteryHeatEnabled() && !batteryHeatPulseContinues()) {
+        return NULL;
+    }
+
+    const batteryHeatConfig_t *config = batteryHeatConfig();
+    const char *message = config->message;
+    if (batteryHeatOutputHigh && config->activeMessage[0]) {
+        message = config->activeMessage;
+    }
+
+    return message[0] ? message : NULL;
+}
+
+unsigned batteryHeatCopyUpper(char *dest, unsigned destSize, const char *src)
+{
+    if (!dest || destSize == 0) {
+        return 0;
+    }
+
+    unsigned i = 0;
+    if (src) {
+        for (; src[i] && (i + 1) < destSize; i++) {
+            dest[i] = toupper((unsigned char)src[i]);
+        }
+    }
+    dest[i] = '\0';
+
+    return i;
+}
+
+unsigned batteryHeatWrapMessage(const char *text, unsigned lineWidth, char *lines, unsigned lineSize, unsigned lineCount)
+{
+    if (!text || !lines || lineWidth == 0 || lineSize < 2 || lineCount == 0) {
+        return 0;
+    }
+
+    if (lineWidth >= lineSize) {
+        lineWidth = lineSize - 1;
+    }
+
+    unsigned count = 0;
+    const char *cursor = text;
+
+    while (*cursor && count < lineCount) {
+        while (*cursor == ' ') {
+            cursor++;
+        }
+        if (*cursor == '\0') {
+            break;
+        }
+
+        const char * const lineStart = cursor;
+        const char *lastBreak = NULL;
+        unsigned length = 0;
+        while (cursor[length] && length < lineWidth) {
+            if (cursor[length] == ' ') {
+                lastBreak = cursor + length;
+            }
+            length++;
+        }
+
+        const bool remainderFits = cursor[length] == '\0';
+        unsigned take;
+        const char *next;
+        if (remainderFits || !lastBreak) {
+            take = length;
+            next = lineStart + length;
+        } else {
+            take = (unsigned)(lastBreak - lineStart);
+            next = lastBreak;
+        }
+        if (take == 0) {
+            break;
+        }
+
+        char *dest = lines + (count * lineSize);
+        memcpy(dest, lineStart, take);
+        dest[take] = '\0';
+        while (take > 0 && dest[take - 1] == ' ') {
+            dest[--take] = '\0';
+        }
+
+        count++;
+        cursor = next;
+    }
+
+    return count;
+}
+
 void pinioBoxUpdate(timeUs_t currentTimeUs)
 {
-    UNUSED(currentTimeUs);
+    bool ownsAPin = false;
+    for (int i = 0; i < PINIO_COUNT; i++) {
+        if (batteryHeatOwnsPin(i)) {
+            ownsAPin = true;
+            break;
+        }
+    }
+
+    const bool heatHigh = ownsAPin ? batteryHeatIsHigh(currentTimeUs) : false;
+    if (!ownsAPin && !batteryHeatEnabled() && !batteryHeatPulseContinues()) {
+        batteryHeatActive = false;
+        batteryHeatOutputHigh = false;
+        batteryHeatFinished = false;
+    }
 
     for (int i = 0; i < PINIO_COUNT; i++) {
+        if (batteryHeatOwnsPin(i)) {
+            pinioSet(i, heatHigh);
+            continue;
+        }
         if (pinioBoxRuntimeConfig.boxId[i] != BOXID_NONE) {
             pinioSet(i, getBoxIdState(pinioBoxRuntimeConfig.boxId[i]));
         }
@@ -74,6 +295,9 @@ void pinioBoxTaskControl(void)
             enableTask = true;
             break;
         }
+    }
+    if (!enableTask && isModeActivationConditionPresent(BOXBATTERYHEAT)) {
+        enableTask = true;
     }
     setTaskEnabled(TASK_PINIOBOX, enableTask);
 }

@@ -28,3 +28,8 @@ extern const char CRASHFLIP_WARNING[];
 STATIC_ASSERT(OSD_WARNINGS_MAX_SIZE + 1 <= OSD_ELEMENT_BUFFER_LENGTH, osd_warnings_size_exceeds_buffer_size);
 
 void renderOsdWarning(char *warningText, bool *blinking, uint8_t *displayAttr);
+
+#ifdef USE_PINIOBOX
+// True when the latest renderOsdWarning() selected the Battery Heat message.
+bool osdRenderedBatteryHeatWarning(void);
+#endif

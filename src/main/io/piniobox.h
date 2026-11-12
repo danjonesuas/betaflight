@@ -18,8 +18,23 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "common/time.h"
 #include "pg/piniobox.h"
 
 void pinioBoxInit(const pinioBoxConfig_t *pinioBoxConfig);
 void pinioBoxUpdate(timeUs_t currentTimeUs);
 void pinioBoxTaskControl(void);
+
+// OSD text for the Battery Heat sequence. The starting message is shown
+// until the GPIO latches on, then the active message replaces it for
+// battery_heat_active_ms. A non-zero activation time keeps running after
+// the switch is released. Zero follows the switch. NULL when the sequence
+// has finished, the craft is armed, or the selected string is empty.
+const char *batteryHeatMessage(void);
+
+// Uppercase copy for the OSD font. Returns the number of characters written.
+unsigned batteryHeatCopyUpper(char *dest, unsigned destSize, const char *src);
+
+// Word-wrap text into lineCount buffers of lineSize bytes, packed in lines.
+// Returns the number of lines written.
+unsigned batteryHeatWrapMessage(const char *text, unsigned lineWidth, char *lines, unsigned lineSize, unsigned lineCount);

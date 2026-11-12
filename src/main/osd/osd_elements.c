@@ -163,6 +163,9 @@
 #include "flight/pos_hold.h"
 
 #include "io/gps.h"
+#ifdef USE_PINIOBOX
+#include "io/piniobox.h"
+#endif
 #include "io/vtx.h"
 
 #include "osd/osd.h"
@@ -2018,6 +2021,50 @@ static void osdElementAuxValue(osdElementParms_t *element)
     tfp_sprintf(element->buff, "%c%d", osdConfig()->aux_symbol, osdAuxValue);
 }
 
+#ifdef USE_PINIOBOX
+// MSP displayport writeString sends at most 30 characters, and MAX7456
+// rows are 30 columns. Keep each drawn line inside both limits.
+#define BATTERY_HEAT_OSD_LINE_CHARS 30
+#define BATTERY_HEAT_OSD_LINE_COUNT 8
+
+static void osdDrawBatteryHeatMessage(osdElementParms_t *element)
+{
+    const char *message = batteryHeatMessage();
+    if (!message || !element->osdDisplayPort) {
+        return;
+    }
+
+    char text[BATTERY_HEAT_MESSAGE_LENGTH + 1];
+    batteryHeatCopyUpper(text, sizeof(text), message);
+
+    const unsigned cols = element->osdDisplayPort->cols ? element->osdDisplayPort->cols : VIDEO_COLUMNS_SD;
+    const unsigned rows = element->osdDisplayPort->rows ? element->osdDisplayPort->rows : VIDEO_LINES_PAL;
+
+    unsigned x = element->elemPosX;
+    if (x >= cols) {
+        x = 0;
+    }
+    unsigned width = cols - x;
+    if (width > BATTERY_HEAT_OSD_LINE_CHARS) {
+        width = BATTERY_HEAT_OSD_LINE_CHARS;
+    }
+    // A warnings element parked on the right would slice the sentence into
+    // unreadable columns. Slide the block left so a full row can be used.
+    if (width < 8 && cols > width) {
+        width = cols > BATTERY_HEAT_OSD_LINE_CHARS ? BATTERY_HEAT_OSD_LINE_CHARS : cols;
+        x = cols - width;
+    }
+
+    char lines[BATTERY_HEAT_OSD_LINE_COUNT][BATTERY_HEAT_OSD_LINE_CHARS + 1];
+    const unsigned count = batteryHeatWrapMessage(text, width, &lines[0][0], sizeof(lines[0]), BATTERY_HEAT_OSD_LINE_COUNT);
+
+    unsigned y = element->elemPosY;
+    for (unsigned i = 0; i < count && y < rows; i++, y++) {
+        osdDisplayWrite(element, (uint8_t)x, (uint8_t)y, DISPLAYPORT_SEVERITY_INFO, lines[i]);
+    }
+}
+#endif
+
 static void osdElementWarnings(osdElementParms_t *element)
 {
     bool elementBlinking = false;
@@ -2027,6 +2074,15 @@ static void osdElementWarnings(osdElementParms_t *element)
     } else {
         CLR_BLINK(OSD_WARNINGS);
     }
+
+#ifdef USE_PINIOBOX
+    // The shared warning buffer is one row. Draw the full uppercased
+    // sentence across the following rows and skip that single-row write.
+    if (osdRenderedBatteryHeatWarning()) {
+        osdDrawBatteryHeatMessage(element);
+        element->drawElement = false;
+    }
+#endif
 
 #ifdef USE_CRAFTNAME_MSGS
     // Injects data into the CraftName variable for systems which limit

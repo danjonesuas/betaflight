@@ -562,6 +562,12 @@ pid_unittest_DEFINES := \
 		USE_FEEDFORWARD= \
 		USE_ADVANCED_TPA= \
 
+piniobox_osd_unittest_SRC := \
+		$(USER_DIR)/io/piniobox.c
+
+piniobox_osd_unittest_DEFINES := \
+		USE_PINIOBOX=
+
 position_rescue_geometry_unittest_SRC := \
 		$(USER_DIR)/common/maths.c
 
