@@ -61,6 +61,7 @@
 #include "flight/position.h"
 #include "flight/pos_hold.h"
 
+#include "io/apex.h"
 #include "io/asyncfatfs/asyncfatfs.h"
 #include "io/beeper.h"
 #include "io/dashboard.h"
@@ -499,6 +500,10 @@ task_attribute_t task_attributes[TASK_COUNT] = {
     [TASK_DRONECAN] = DEFINE_TASK("DRONECAN", NULL, NULL, dronecanUpdate, TASK_PERIOD_HZ(50), TASK_PRIORITY_LOW),
 #endif
 
+#ifdef USE_APEX
+    [TASK_APEX] = DEFINE_TASK("APEX", NULL, NULL, apexUpdate, TASK_PERIOD_HZ(100), TASK_PRIORITY_MEDIUM),
+#endif
+
 };
 
 task_t *getTask(unsigned taskId)
@@ -701,5 +706,9 @@ void tasksInit(void)
 
 #if ENABLE_DRONECAN
     setTaskEnabled(TASK_DRONECAN, dronecanIsInitialised());
+#endif
+
+#ifdef USE_APEX
+    setTaskEnabled(TASK_APEX, apexIsEnabled());
 #endif
 }

@@ -306,6 +306,10 @@ include $(MAKE_SCRIPT_DIR)/openocd.mk
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
                    $(ROOT)/lib/main/MAVLink
 
+# APEX Adaptive Payload EXchange reference library (vendored under lib/main/apex)
+INCLUDE_DIRS    := $(INCLUDE_DIRS) \
+                   $(LIB_MAIN_DIR)/apex/include
+
 INCLUDE_DIRS    := $(INCLUDE_DIRS) \
                    $(TARGET_DIR)
 
