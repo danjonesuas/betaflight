@@ -244,7 +244,7 @@ typedef enum {
 #endif
 
 #ifdef USE_APEX
-    OSD_APEX_DISPLAY_TEXT,      // APEX Activation DISPLAY_TEXT payload
+    OSD_APEX_DISPLAY_TEXT,      // APEX DISPLAY_TEXT, or payload connection status
 #endif
 
     OSD_ITEM_COUNT // MUST BE LAST

@@ -33,6 +33,7 @@
 #include "apex/apex_status.h"
 
 #include "common/maths.h"
+#include "common/printf.h"
 #include "common/utils.h"
 
 #include "drivers/serial.h"
@@ -81,6 +82,7 @@ static apexTrackedDevice_t apexDevices[APEX_BF_MAX_TRACKED];
 static apex_flight_state_t apexFlightState = APEX_FLIGHT_STATE_STANDBY;
 static bool apexInitialised = false;
 static char apexDisplayText[APEX_OSD_DISPLAY_TEXT_MAX + 1];
+static char apexOsdStatusText[APEX_OSD_DISPLAY_TEXT_MAX + 1];
 static bool apexEnableBoxWasActive = false;
 static bool apexTriggerBoxWasActive = false;
 
@@ -153,6 +155,39 @@ static apexTrackedDevice_t *apexFirstConnected(void)
     return NULL;
 }
 
+static bool apexAnyTrackedDevice(void)
+{
+    for (unsigned i = 0; i < APEX_BF_MAX_TRACKED; i++) {
+        if (apexDevices[i].in_use) {
+            return true;
+        }
+    }
+    return false;
+}
+
+static void apexRefreshOsdStatusText(void)
+{
+    const apexTrackedDevice_t *d = apexFirstConnected();
+    if (d) {
+        // Connected banner while standby; once Activation reports a
+        // non-standby state, surface READY / ENABLED / etc. for the pilot.
+        if (d->state == APEX_ACTIVATION_STATE_STANDBY) {
+            tfp_sprintf(apexOsdStatusText, "APEX CONNECTED");
+        } else {
+            tfp_sprintf(apexOsdStatusText, "APEX %s", apexActStateName((uint8_t)d->state));
+        }
+        return;
+    }
+
+    // Core CONNECTED / provisional before Activation capability arrives.
+    if (apexAnyTrackedDevice()) {
+        tfp_sprintf(apexOsdStatusText, "APEX CONNECTED");
+        return;
+    }
+
+    apexOsdStatusText[0] = '\0';
+}
+
 static void apexOnDeviceEvent(void *user, uint8_t device_id, apex_device_status_t status)
 {
     UNUSED(user);
@@ -162,8 +197,14 @@ static void apexOnDeviceEvent(void *user, uint8_t device_id, apex_device_status_
         if (d) {
             d->in_use = false;
         }
+        // Drop stale device prompts when the last payload leaves.
+        if (!apexAnyTrackedDevice()) {
+            apexDisplayText[0] = '\0';
+        }
+        apexRefreshOsdStatusText();
     } else if (status == APEX_DEV_STATUS_PROVISIONAL || status == APEX_DEV_STATUS_CONNECTED) {
         apexDevAlloc(device_id);
+        apexRefreshOsdStatusText();
     }
 }
 
@@ -177,6 +218,7 @@ static void apexOnCapability(void *user, uint8_t device_id, const apex_activatio
     d->has_cap = true;
     d->cap = *cap;
     d->start_sent_mask = 0;
+    apexRefreshOsdStatusText();
 
     // Advertise OSD-sized display real estate so devices size DISPLAY_TEXT for us.
     apex_activation_host_send_display_info(&apexActHost, device_id,
@@ -192,6 +234,7 @@ static void apexOnStatus(void *user, uint8_t device_id, const apex_activation_st
     }
     d->state = st->state;
     d->activations_remaining = st->activations_remaining;
+    apexRefreshOsdStatusText();
 }
 
 static void apexOnAck(void *user, uint8_t device_id, const apex_activation_ack_t *ack)
@@ -320,27 +363,36 @@ static void apexAutoFirePreconditions(void)
     }
 }
 
+static uint8_t apexEnableSyncedDeviceId = APEX_DEVICE_ID_UNASSIGNED;
+
 static void apexProcessModeBoxes(void)
 {
     const bool enableActive = IS_RC_MODE_ACTIVE(BOXAPEXENABLE);
     const bool triggerActive = IS_RC_MODE_ACTIVE(BOXAPEXTRIGGER);
     const apexTrackedDevice_t *target = apexFirstConnected();
 
-    if (enableActive != apexEnableBoxWasActive) {
-        if (target) {
+    // BOXAPEXENABLE is a level mode mapped to Activation SET_ENABLED / SET_DISABLED.
+    // Re-sync when a payload appears so a switch already held high still arms it.
+    if (target) {
+        const bool levelChanged = (enableActive != apexEnableBoxWasActive);
+        const bool needConnectSync = enableActive && (target->device_id != apexEnableSyncedDeviceId);
+        if (levelChanged || needConnectSync) {
             if (enableActive) {
                 apex_activation_host_set_enabled(&apexActHost, target->device_id);
+                apexEnableSyncedDeviceId = target->device_id;
             } else {
                 apex_activation_host_set_disabled(&apexActHost, target->device_id);
+                apexEnableSyncedDeviceId = APEX_DEVICE_ID_UNASSIGNED;
             }
         }
-        apexEnableBoxWasActive = enableActive;
+    } else {
+        apexEnableSyncedDeviceId = APEX_DEVICE_ID_UNASSIGNED;
     }
+    apexEnableBoxWasActive = enableActive;
 
-    if (triggerActive && !apexTriggerBoxWasActive) {
-        if (target) {
-            apex_activation_host_trigger(&apexActHost, target->device_id);
-        }
+    // BOXAPEXTRIGGER is rising-edge mapped to Activation TRIGGER.
+    if (triggerActive && !apexTriggerBoxWasActive && target) {
+        apex_activation_host_trigger(&apexActHost, target->device_id);
     }
     apexTriggerBoxWasActive = triggerActive;
 }
@@ -364,8 +416,10 @@ bool apexInit(void)
 
     memset(apexDevices, 0, sizeof(apexDevices));
     apexDisplayText[0] = '\0';
+    apexOsdStatusText[0] = '\0';
     apexEnableBoxWasActive = false;
     apexTriggerBoxWasActive = false;
+    apexEnableSyncedDeviceId = APEX_DEVICE_ID_UNASSIGNED;
 
     apex_host_cfg_t hcfg = {0};
     hcfg.supported_interfaces =
@@ -456,6 +510,20 @@ const char *apexActStateName(uint8_t state)
 const char *apexGetDisplayText(void)
 {
     return apexDisplayText;
+}
+
+bool apexHasConnectedPayload(void)
+{
+    return apexAnyTrackedDevice();
+}
+
+const char *apexGetOsdText(void)
+{
+    // Device DISPLAY_TEXT (pilot prompts) wins over the local status banner.
+    if (apexDisplayText[0] != '\0') {
+        return apexDisplayText;
+    }
+    return apexOsdStatusText;
 }
 
 void apexGetStatus(apexStatusSnapshot_t *out)
